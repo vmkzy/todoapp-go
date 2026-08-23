@@ -9,31 +9,36 @@ env-down:
 	@docker compose down todoapp-postgres
 	
 env-cleanup:
-	@powershell -Command "$$ans = Read-Host 'Clean all volume files [y/N]'; if ($$ans -eq 'y') \
-	{ docker compose down todoapp-postgres port-forwarder; Remove-Item -Recurse -Force out\pgdata -ErrorAction SilentlyContinue; Write-Host 'File environment clean' } \
-	else { Write-Host 'Clean environment cancel' }"
+	@powershell -Command "$$ans = Read-Host 'Очистить все volume файлы окружения? Опасность утери данных. [y/N]'; \
+	if ($$ans -match '^[yY]$$') { \
+		docker compose down todoapp-postgres port-forwarder; \
+		Remove-Item -Recurse -Force '$(PROJECT_ROOT)\out\pgdata' -ErrorAction SilentlyContinue; \
+		Write-Host 'Файлы окружения очищены' \
+	} else { \
+		Write-Host 'Очистка окружения отменена' \
+	}"
 
 migrate-create:
-	@powershell -Command "if ('$(seq)' -eq '') { Write-Host 'Erorr seq. Example make migrate-create seq=init'; exit 1 }"
-	docker compose run --rm todoapp-postgres-migrate \
+	$(if $(strip $(seq)),,$(error Отсутствует необходимый параметр seq. Пример: make migrate-create seq=init))
+	@docker compose run --rm todoapp-postgres-migrate \
 		create \
 		-ext sql \
 		-dir /migrations \
 		-seq "$(seq)"
-	
+
 migrate-up:
-	@make migrate-action action=up
+	@$(MAKE) migrate-action action=up
 
 migrate-down:
-	@make migrate-action action=down
+	@$(MAKE) migrate-action action=down
 
 migrate-action:
-	@powershell -Command "if ('$(action)' -eq '') { Write-Host 'Erorr action. Example make migrate-action action=up'; exit 1 }"
+	$(if $(strip $(action)),,$(error Отсутствует необходимый параметр action. Пример: make migrate-action action=up))
 	@docker compose run --rm todoapp-postgres-migrate \
 		-path /migrations \
-		-database postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@todoapp-postgres:5432/${POSTGRES_DB}?sslmode=disable \
+		-database "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@todoapp-postgres:5432/${POSTGRES_DB}?sslmode=disable" \
 		"$(action)"
-
+		
 env-port-forward:
 	@docker compose up -d port-forwarder
 
@@ -45,3 +50,14 @@ todoapp-run:
 	set "POSTGRES_HOST=localhost" &&\
 	go mod tidy && \
 	go run cmd/todoapp/main.go
+
+logs-cleanup:
+	@powershell -Command "$$ans = Read-Host 'Очистить все log файлы? Опасность утери логов. [y/N]'; \
+	if ($$ans -eq 'y') { \
+		Remove-Item -Recurse -Force '$(PROJECT_ROOT)\out\logs' -ErrorAction SilentlyContinue; \
+		Write-Host 'Файлы логов очищены' \
+	} else { \
+		Write-Host 'Очистка логов отменена' \
+	}"
+
+
