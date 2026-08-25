@@ -60,4 +60,8 @@ logs-cleanup:
 		Write-Host 'Очистка логов отменена' \
 	}"
 
+todoapp-deploy:
+	@docker compose up -d --build todoapp
 
+ps:
+	@docker compose ps
